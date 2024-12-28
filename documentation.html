@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BackWood API Documentation</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <style>
+        .nav-pills .nav-link.active {
+            background-color: #198754;
+            animation: pulse 2s infinite;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        pre:hover {
+            transform: scale(1.01);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .endpoint {
+            border-left: 4px solid #198754;
+            padding-left: 15px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+        .endpoint:hover {
+            border-left-width: 8px;
+        }
+        .method {
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+        .get { background-color: #0dcaf0; }
+        .post { background-color: #198754; color: white; }
+        .put { background-color: #ffc107; }
+        .delete { background-color: #dc3545; color: white; }
+        .emoji-title {
+            font-size: 2em;
+            margin-right: 10px;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success animate__animated animate__fadeIn">
+        <div class="container">
+            <a class="navbar-brand" href="#">🌲 BackWood API</a>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        <div class="row">
+            <div class="col-md-3">
+                <nav id="navbar-example3" class="h-100 flex-column align-items-stretch pe-4 border-end">
+                    <nav class="nav nav-pills flex-column">
+                        <a class="nav-link" href="#auth">🔐 Authentication</a>
+                        <a class="nav-link" href="#profile">👤 Profile</a>
+                        <a class="nav-link" href="#listings">📦 Listings</a>
+                        <a class="nav-link" href="#messages">💬 Messages</a>
+                        <a class="nav-link" href="#offers">💰 Offers</a>
+                        <a class="nav-link" href="#reviews">⭐ Reviews</a>
+                        <a class="nav-link" href="#kyc">🪪 KYC</a>
+                        <a class="nav-link" href="#admin">👑 Admin</a>
+                        <a class="nav-link" href="#react-native">📱 React Native</a>
+                        <a class="nav-link" href="#error-handling">⚠️ Error Handling</a>
+                        <a class="nav-link" href="#websockets">🔌 WebSockets</a>
+                        <a class="nav-link" href="#image-guidelines">🖼️ Image Guidelines</a>
+                    </nav>
+                </nav>
+            </div>
+
+            <div class="col-md-9">
+                <h1 class="animate__animated animate__fadeInDown">🌲 BackWood API Documentation</h1>
+                <p class="lead">Welcome to the BackWood API documentation. This guide will help you integrate with our backend services.</p>
+
+                <!-- Error Handling Section -->
+                <section id="error-handling" class="mb-5">
+                    <h2>⚠️ Error Handling</h2>
+                    <p>All API endpoints follow a consistent error handling pattern:</p>
+                    
+                    <div class="endpoint">
+                        <h4>Error Response Format</h4>
+                        <pre><code class="language-json">{
+  "status": "error" | "fail",
+  "message": "Human readable error message",
+  "errors": [
+    // Optional array of specific error details
+  ],
+  "stack": "Stack trace (development only)"
+}</code></pre>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h5>Common Error Status Codes</h5>
+                        <ul>
+                            <li>400 - Bad Request (validation errors)</li>
+                            <li>401 - Unauthorized (authentication required)</li>
+                            <li>403 - Forbidden (insufficient permissions)</li>
+                            <li>404 - Not Found</li>
+                            <li>409 - Conflict (e.g., duplicate entry)</li>
+                            <li>422 - Unprocessable Entity</li>
+                            <li>500 - Internal Server Error</li>
+                        </ul>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4>Error Handling in React Native</h4>
+                        <pre><code class="language-javascript">// API error handling utility
+const handleApiError = (error) => {
+  if (error.response) {
+    // Server responded with error
+    const { status, data } = error.response;
+    
+    switch (status) {
+      case 401:
+        // Handle authentication error
+        navigation.navigate('Login');
+        break;
+      case 403:
+        Alert.alert('Access Denied', data.message);
+        break;
+      case 422:
+        // Handle validation errors
+        const errors = data.errors?.join('\n');
+        Alert.alert('Validation Error', errors || data.message);
+        break;
+      default:
+        Alert.alert('Error', data.message || 'Something went wrong');
+    }
+  } else if (error.request) {
+    // Network error
+    Alert.alert('Network Error', 'Please check your internet connection');
+  } else {
+    // Other errors
+    Alert.alert('Error', error.message || 'Something went wrong');
+  }
+};</code></pre>
+                    </div>
+                </section>
+
+                <!-- Authentication Section -->
+                <section id="auth" class="mb-5">
+                    <h2>🔐 Authentication</h2>
+                    <p>All authenticated endpoints require a Bearer token in the Authorization header.</p>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/auth/register</h4>
+                        <p>Register a new user account and sends welcome email with verification code.</p>
+                        <h5>Request:</h5>
+                        <pre><code class="language-json">{
+  "email": "user@example.com",
+  "password": "StrongPass1!",
+  "firstName": "John",
+  "lastName": "Doe",
+  "phone": "+1234567890"
+}</code></pre>
+                        <h5>Response:</h5>
+                        <pre><code class="language-json">{
+  "message": "User created successfully. Please verify your email.",
+  "token": "jwt_token",
+  "user": {
+    "id": "user_id",
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "+1234567890",
+    "status": "PENDING",
+    "emailVerified": false,
+    "phoneVerified": false,
+    "kycVerified": false
+  }
+}</code></pre>
+                        <div class="alert alert-info">
+                            <strong>Note:</strong> A welcome email with verification code will be sent automatically.
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/auth/login</h4>
+                        <p>Login to get authentication token.</p>
+                        <pre><code class="language-json">{
+  "email": "user@example.com",
+  "password": "StrongPass1!"
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/auth/logout</h4>
+                        <p>Invalidate current token.</p>
+                        <pre><code class="language-javascript">// React Native Example
+const logout = async () => {
+  try {
+    await axios.post('/api/auth/logout', {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    // Clear local storage
+    await AsyncStorage.removeItem('token');
+    navigation.replace('Login');
+  } catch (error) {
+    handleApiError(error);
+  }
+};</code></pre>
+                    </div>
+                </section>
+
+                <!-- Verification Section -->
+                <section id="verification" class="mb-5">
+                    <h2>✉️ Email & Verification</h2>
+                    <p>Email verification system with templated emails.</p>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/verification/send</h4>
+                        <p>Send a verification code to user's email.</p>
+                        <pre><code class="language-json">{
+  "userId": "user_id",
+  "type": "EMAIL"
+}</code></pre>
+                        <h5>Response:</h5>
+                        <pre><code class="language-json">{
+  "message": "Verification code sent to your email"
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/verification/verify</h4>
+                        <p>Verify email using received code.</p>
+                        <pre><code class="language-json">{
+  "userId": "user_id",
+  "type": "EMAIL",
+  "code": "123456"
+}</code></pre>
+                        <h5>Response:</h5>
+                        <pre><code class="language-json">{
+  "message": "Email verified successfully"
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4>Email Templates</h4>
+                        <p>Available email templates:</p>
+                        <ul>
+                            <li><strong>Welcome Email</strong>
+                                <ul>
+                                    <li>Sent upon registration</li>
+                                    <li>Includes verification code</li>
+                                    <li>Personalized with user's name</li>
+                                </ul>
+                            </li>
+                            <li><strong>Verification Email</strong>
+                                <ul>
+                                    <li>6-digit verification code</li>
+                                    <li>15-minute expiration</li>
+                                    <li>Personalized greeting</li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <h5>Template Variables:</h5>
+                        <pre><code class="language-json">{
+  "firstName": "User's first name",
+  "verificationCode": "6-digit code",
+  "appName": "Application name from env",
+  "year": "Current year"
+}</code></pre>
+                    </div>
+                </section>
+
+                <!-- Messages Section -->
+                <section id="messages" class="mb-5">
+                    <h2>💬 Messages</h2>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/messages/send</h4>
+                        <p>Send a message to another user.</p>
+                        <pre><code class="language-json">{
+  "receiverId": "user_id",
+  "content": "Hello, is this item still available?"
+}</code></pre>
+                        <h5>React Native Implementation</h5>
+                        <pre><code class="language-javascript">const sendMessage = async (receiverId, content) => {
+  try {
+    const response = await axios.post('/api/messages/send', {
+      receiverId,
+      content
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    // Update local message state
+    setMessages(prev => [...prev, response.data.message]);
+    
+  } catch (error) {
+    handleApiError(error);
+  }
+};</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/messages/conversation/{otherId}</h4>
+                        <p>Get conversation history with another user.</p>
+                        <pre><code class="language-javascript">// React Native Example
+const fetchConversation = async (userId) => {
+  try {
+    const response = await axios.get(`/api/messages/conversation/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        page: currentPage,
+        limit: 20
+      }
+    });
+    
+    setMessages(response.data.messages);
+    setPagination(response.data.pagination);
+    
+  } catch (error) {
+    handleApiError(error);
+  }
+};</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/messages/unread/count</h4>
+                        <p>Get number of unread messages.</p>
+                        <pre><code class="language-javascript">// React Native Example with WebSocket
+useEffect(() => {
+  // Initial fetch
+  fetchUnreadCount();
+  
+  // Listen for new messages
+  socket.on('newMessage', () => {
+    fetchUnreadCount();
+  });
+  
+  return () => socket.off('newMessage');
+}, []);</code></pre>
+                    </div>
+                </section>
+
+                <!-- Admin Section -->
+                <section id="admin" class="mb-5">
+                    <h2>👑 Admin</h2>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/admin/login</h4>
+                        <p>Admin login with enhanced security.</p>
+                        <pre><code class="language-json">{
+  "email": "admin@example.com",
+  "password": "AdminPass1!",
+  "totpCode": "123456"  // If 2FA enabled
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/admin/users</h4>
+                        <p>Get all users with filtering and pagination.</p>
+                        <pre><code class="language-javascript">// React Native Admin Panel Example
+const fetchUsers = async () => {
+  try {
+    const response = await axios.get('/api/admin/users', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      params: {
+        status: filterStatus,
+        role: filterRole,
+        search: searchQuery,
+        page: currentPage,
+        limit: 20
+      }
+    });
+    
+    setUsers(response.data.users);
+    setPagination(response.data.pagination);
+    
+  } catch (error) {
+    handleApiError(error);
+  }
+};</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method put">PUT</span> /api/admin/users/{userId}</h4>
+                        <p>Update user status or role.</p>
+                        <pre><code class="language-json">{
+  "status": "ACTIVE" | "SUSPENDED" | "BANNED",
+  "role": "USER" | "MODERATOR" | "ADMIN"
+}</code></pre>
+                    </div>
+                </section>
+
+                <!-- WebSockets Section -->
+                <section id="websockets" class="mb-5">
+                    <h2>🔌 WebSocket Integration</h2>
+                    
+                    <div class="endpoint">
+                        <h4>Real-time Messaging Example</h4>
+                        <pre><code class="language-javascript">// React Native WebSocket Setup
+import { io } from 'socket.io-client';
+
+const setupWebSocket = (token) => {
+  const socket = io('YOUR_WEBSOCKET_URL', {
+    auth: { token }
+  });
+
+  socket.on('connect', () => {
+    console.log('Connected to WebSocket');
+  });
+
+  socket.on('newMessage', (message) => {
+    // Update messages in real-time
+    setMessages(prev => [...prev, message]);
+    // Show notification
+    showNotification(message);
+  });
+
+  socket.on('messageRead', ({ messageId }) => {
+    // Update message read status
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? {...msg, read: true} : msg
+    ));
+  });
+
+  return socket;
+};</code></pre>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h5>WebSocket Events</h5>
+                        <ul>
+                            <li><code>newMessage</code> - Received when a new message arrives</li>
+                            <li><code>messageRead</code> - When messages are marked as read</li>
+                            <li><code>userOnline</code> - When a user comes online</li>
+                            <li><code>userOffline</code> - When a user goes offline</li>
+                            <li><code>typing</code> - When someone is typing</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- React Native Section -->
+                <section id="react-native" class="mb-5">
+                    <h2>📱 React Native Integration</h2>
+                    
+                    <div class="endpoint">
+                        <h4>API Client Setup</h4>
+                        <pre><code class="language-javascript">// api/client.js
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const api = axios.create({
+  baseURL: 'YOUR_API_URL',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Add token to requests
+api.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Handle token expiration
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      await AsyncStorage.removeItem('token');
+      // Navigate to login
+      navigation.replace('Login');
+    }
+    return Promise.reject(error);
+  }
+);</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4>Custom Hooks Example</h4>
+                        <pre><code class="language-javascript">// hooks/useMessages.js
+export const useMessages = (conversationId) => {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(
+          `/messages/conversation/${conversationId}`
+        );
+        setMessages(response.data.messages);
+      } catch (err) {
+        setError(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMessages();
+  }, [conversationId]);
+
+  const sendMessage = async (content) => {
+    try {
+      const response = await api.post('/messages/send', {
+        receiverId: conversationId,
+        content
+      });
+      setMessages(prev => [...prev, response.data.message]);
+      return response.data.message;
+    } catch (err) {
+      setError(err);
+      throw err;
+    }
+  };
+
+  return { messages, loading, error, sendMessage };
+};</code></pre>
+                    </div>
+                </section>
+
+                <!-- Profile Section -->
+                <section id="profile" class="mb-5">
+                    <h2>👤 Profile</h2>
+                    <p>Manage user profiles and settings.</p>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/profile</h4>
+                        <p>Get current user's profile</p>
+                        <h5>Response:</h5>
+                        <pre><code class="language-json">{
+  "user": {
+    "id": "user_id",
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "+1234567890",
+    "avatar": "url_to_avatar",
+    "status": "ACTIVE",
+    "emailVerified": true,
+    "phoneVerified": true,
+    "kycVerified": false,
+    "createdAt": "2024-01-01T00:00:00Z",
+    "lastLogin": "2024-01-01T00:00:00Z"
+  }
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method put">PUT</span> /api/profile</h4>
+                        <p>Update user profile</p>
+                        <h5>Request:</h5>
+                        <pre><code class="language-json">{
+  "firstName": "John",
+  "lastName": "Doe",
+  "phone": "+1234567890",
+  "avatar": "base64_image_data"
+}</code></pre>
+                    </div>
+                </section>
+
+                <!-- Listings Section -->
+                <section id="listings" class="mb-5">
+                    <h2>📦 Listings</h2>
+                    <p>Manage product listings and searches.</p>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/listings</h4>
+                        <p>Create a new listing</p>
+                        <h5>Request:</h5>
+                        <pre><code class="language-json">{
+  "title": "Product Title",
+  "description": "Detailed description",
+  "price": 99.99,
+  "category": "ELECTRONICS",
+  "condition": "NEW",
+  "images": ["base64_image_1", "base64_image_2"],
+  "location": {
+    "latitude": 123.456,
+    "longitude": 789.012
+  },
+  "tags": ["tag1", "tag2"]
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/listings</h4>
+                        <p>Search listings with filters</p>
+                        <h5>Query Parameters:</h5>
+                        <ul>
+                            <li><code>search</code> - Search term</li>
+                            <li><code>category</code> - Filter by category</li>
+                            <li><code>minPrice</code> - Minimum price</li>
+                            <li><code>maxPrice</code> - Maximum price</li>
+                            <li><code>condition</code> - Item condition</li>
+                            <li><code>radius</code> - Search radius in km</li>
+                            <li><code>lat</code> - Latitude for location-based search</li>
+                            <li><code>lng</code> - Longitude for location-based search</li>
+                            <li><code>page</code> - Page number (default: 1)</li>
+                            <li><code>limit</code> - Items per page (default: 20)</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Messages Section -->
+                <section id="messages" class="mb-5">
+                    <h2>💬 Messages</h2>
+                    <p>Real-time messaging system using WebSocket.</p>
+                    
+                    <div class="endpoint">
+                        <h4>WebSocket Events</h4>
+                        <pre><code class="language-javascript">// Connect to WebSocket
+const socket = io(WEBSOCKET_URL, {
+  auth: { token: userToken }
+});
+
+// Listen for new messages
+socket.on('newMessage', (message) => {
+  console.log('New message:', message);
+});
+
+// Send a message
+socket.emit('sendMessage', {
+  recipientId: 'user_id',
+  content: 'Message content',
+  listingId: 'listing_id' // Optional, for listing-related messages
+});</code></pre>
+                    </div>
+                </section>
+
+                <!-- Offers Section -->
+                <section id="offers" class="mb-5">
+                    <h2>💰 Offers</h2>
+                    <p>Manage buying and selling offers for listings.</p>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/offers</h4>
+                        <p>Make an offer on a listing</p>
+                        <h5>Request:</h5>
+                        <pre><code class="language-json">{
+  "listingId": "listing_id",
+  "amount": 95.50,
+  "message": "Is this still available? I'm interested.",
+  "type": "BUY"
+}</code></pre>
+                        <h5>Response:</h5>
+                        <pre><code class="language-json">{
+  "id": "offer_id",
+  "status": "PENDING",
+  "createdAt": "2024-01-01T00:00:00Z",
+  "amount": 95.50,
+  "message": "Is this still available? I'm interested."
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method put">PUT</span> /api/offers/:offerId</h4>
+                        <p>Update offer status (accept/reject)</p>
+                        <h5>Request:</h5>
+                        <pre><code class="language-json">{
+  "status": "ACCEPTED" | "REJECTED",
+  "message": "Optional response message"
+}</code></pre>
+                    </div>
+                </section>
+
+                <!-- Reviews Section -->
+                <section id="reviews" class="mb-5">
+                    <h2>⭐ Reviews</h2>
+                    <p>User review and rating system.</p>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/reviews</h4>
+                        <p>Create a review for a user after successful transaction</p>
+                        <h5>Request:</h5>
+                        <pre><code class="language-json">{
+  "userId": "user_id",
+  "rating": 5,
+  "comment": "Great buyer! Quick payment and good communication.",
+  "transactionId": "transaction_id"
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/reviews/user/:userId</h4>
+                        <p>Get reviews for a specific user</p>
+                        <h5>Query Parameters:</h5>
+                        <ul>
+                            <li><code>page</code> - Page number (default: 1)</li>
+                            <li><code>limit</code> - Reviews per page (default: 10)</li>
+                            <li><code>sort</code> - Sort order (recent/rating)</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- KYC Section -->
+                <section id="kyc" class="mb-5">
+                    <h2>🪪 KYC</h2>
+                    <p>Know Your Customer verification system.</p>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/kyc/submit</h4>
+                        <p>Submit KYC verification documents</p>
+                        <h5>Request:</h5>
+                        <pre><code class="language-json">{
+  "documentType": "ID_CARD" | "PASSPORT" | "DRIVERS_LICENSE",
+  "idImageUrl": "url_to_id_image",
+  "selfieImageUrl": "url_to_selfie_image"
+}</code></pre>
+                        <div class="alert alert-info">
+                            <strong>Note:</strong> Images must be uploaded separately using the image upload endpoint before submitting KYC.
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/kyc/status</h4>
+                        <p>Check KYC verification status</p>
+                        <h5>Response:</h5>
+                        <pre><code class="language-json">{
+  "status": "PENDING" | "VERIFIED" | "REJECTED",
+  "message": "Optional status message",
+  "submittedAt": "2024-01-01T00:00:00Z",
+  "verifiedAt": "2024-01-02T00:00:00Z"
+}</code></pre>
+                    </div>
+                </section>
+
+                <!-- Image Guidelines Section -->
+                <section id="image-guidelines" class="mb-5">
+                    <h2>🖼️ Image Guidelines</h2>
+                    <p>Guidelines and endpoints for image handling.</p>
+
+                    <div class="endpoint">
+                        <h4><span class="method post">POST</span> /api/images/upload</h4>
+                        <p>Upload images for listings or KYC</p>
+                        <h5>Request:</h5>
+                        <pre><code class="language-json">{
+  "image": "base64_encoded_image",
+  "type": "LISTING" | "KYC_ID" | "KYC_SELFIE",
+  "metadata": {
+    "width": 1024,
+    "height": 768,
+    "size": 1048576
+  }
+}</code></pre>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h5>Image Requirements</h5>
+                        <ul>
+                            <li>Maximum file size: 5MB</li>
+                            <li>Supported formats: JPG, PNG</li>
+                            <li>Minimum dimensions: 640x480 pixels</li>
+                            <li>Maximum dimensions: 4096x4096 pixels</li>
+                            <li>Aspect ratio: Between 4:3 and 16:9</li>
+                        </ul>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4>Image Processing</h4>
+                        <ul>
+                            <li>Images are automatically compressed and optimized</li>
+                            <li>EXIF data is stripped for privacy</li>
+                            <li>Multiple sizes are generated for responsive display</li>
+                            <li>Watermarking is applied to listing images</li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Highlight.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</body>
+</html> 

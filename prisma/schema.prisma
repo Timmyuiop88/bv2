@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ListingType {
+  APARTMENT_RENT
+  APARTMENT_SALE
+  APARTMENT_SHORTLET
+  CAR_SALE
+  CAR_RENT
+  ELECTRONICS
+  FURNITURE
+  OTHER
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  SOLD
+  RENTED
+  EXPIRED
+  REMOVED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+model User {
+  id                String            @id @default(uuid())
+  email             String            @unique
+  password          String
+  firstName         String
+  lastName          String
+  phone             String?           @unique
+  role              UserRole          @default(USER)
+  status            UserStatus        @default(PENDING)
+  emailVerified     Boolean           @default(false)
+  phoneVerified     Boolean           @default(false)
+  kycVerified       Boolean           @default(false)
+  profileImage      String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  listings          Listing[]
+  verifications     Verification[]
+  reviews           Review[]
+  receivedReviews   Review[]          @relation("ReceivedReviews")
+  messages          Message[]
+  receivedMessages  Message[]         @relation("ReceivedMessages")
+  sentOffers        Offer[]           @relation("SentOffers")
+  receivedOffers    Offer[]          @relation("ReceivedOffers")
+}
+
+model Verification {
+  id              String             @id @default(uuid())
+  userId          String
+  type            String             // EMAIL, PHONE, KYC_ID, KYC_SELFIE
+  status          VerificationStatus @default(PENDING)
+  data            String?            // Verification code or document URL
+  expiresAt       DateTime?
+  verifiedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  user            User               @relation(fields: [userId], references: [id])
+}
+
+model Listing {
+  id              String         @id @default(uuid())
+  userId          String
+  type            ListingType
+  title           String
+  description     String
+  price           Decimal
+  currency        String         @default("USD")
+  status          ListingStatus  @default(DRAFT)
+  location        Json?          // Stores address and coordinates
+  features        Json?          // Flexible storage for different listing types
+  images          Image[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  user            User           @relation(fields: [userId], references: [id])
+  reviews         Review[]
+  offers          Offer[]
+}
+
+model Image {
+  id              String    @id @default(uuid())
+  listingId       String
+  url             String
+  isPrimary       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  listing         Listing   @relation(fields: [listingId], references: [id])
+}
+
+model Review {
+  id              String    @id @default(uuid())
+  userId          String
+  listingId       String?
+  targetUserId    String
+  rating          Int
+  comment         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id])
+  targetUser      User      @relation("ReceivedReviews", fields: [targetUserId], references: [id])
+  listing         Listing?  @relation(fields: [listingId], references: [id])
+}
+
+model Message {
+  id              String    @id @default(uuid())
+  senderId        String
+  receiverId      String
+  content         String
+  read            Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  sender          User      @relation(fields: [senderId], references: [id])
+  receiver        User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Offer {
+  id          String      @id @default(uuid())
+  listingId   String
+  buyerId     String
+  sellerId    String
+  price       Decimal
+  status      OfferStatus @default(PENDING)
+  message     String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  listing     Listing     @relation(fields: [listingId], references: [id])
+  buyer       User        @relation("SentOffers", fields: [buyerId], references: [id])
+  seller      User        @relation("ReceivedOffers", fields: [sellerId], references: [id])
+}
