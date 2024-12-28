@@ -109,6 +109,8 @@ model Listing {
   user            User           @relation(fields: [userId], references: [id])
   reviews         Review[]
   offers          Offer[]
+  categoryId      String?
+  category        Category?   @relation(fields: [categoryId], references: [id])
 }
 
 model Image {
@@ -158,4 +160,19 @@ model Offer {
   listing     Listing     @relation(fields: [listingId], references: [id])
   buyer       User        @relation("SentOffers", fields: [buyerId], references: [id])
   seller      User        @relation("ReceivedOffers", fields: [sellerId], references: [id])
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  parentId    String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  parent      Category? @relation("SubCategories", fields: [parentId], references: [id])
+  children    Category[] @relation("SubCategories")
+  listings    Listing[]
 }

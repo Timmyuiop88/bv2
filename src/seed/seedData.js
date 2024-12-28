@@ -1,10 +1,12 @@
-const { User } = require('../models');
-const bcrypt = require('bcryptjs');
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
 
 async function seedUsers() {
   try {
     // Clear existing users
-    await User.deleteMany({});
+    await prisma.user.deleteMany();
 
     const hashedPassword = await bcrypt.hash('password123', 10);
 
@@ -14,23 +16,28 @@ async function seedUsers() {
         password: hashedPassword,
         firstName: 'Admin',
         lastName: 'User',
-        role: 'admin',
+        role: 'ADMIN',
       },
       {
         email: 'user@example.com',
         password: hashedPassword,
         firstName: 'Regular',
         lastName: 'User',
-        role: 'user',
-      },
-      // Add more test users as needed
+        role: 'USER',
+      }
     ];
 
-    await User.insertMany(users);
+    await prisma.user.createMany({
+      data: users
+    });
+
     console.log('Users seeded successfully');
   } catch (error) {
     console.error('Error seeding users:', error);
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
-module.exports = { seedUsers }; 
+// Execute the seed function
+seedUsers(); 
