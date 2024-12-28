@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { sendTemplatedEmail } from '../utils/emailService.js';
 import { sendVerificationCode } from '../services/verificationService.js';

@@ -16,7 +16,7 @@
     "@adminjs/prisma": "^5.0.1",
     "@prisma/client": "^5.22.0",
     "adminjs": "^7.8.13",
-    "bcrypt": "^5.1.1",
+    
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.x.x",
