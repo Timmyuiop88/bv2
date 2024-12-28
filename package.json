@@ -13,11 +13,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@adminjs/design-system": "^4.1.1",
     "@adminjs/express": "^6.1.1",
     "@adminjs/prisma": "^5.0.1",
     "@prisma/client": "^5.22.0",
     "adminjs": "^7.8.13",
-    
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.x.x",
@@ -29,6 +29,7 @@
     "nodemailer": "^6.9.16",
     "path": "^0.12.7",
     "socket.io": "^4.x.x",
+    "styled-components": "^5.3.11",
     "twilio": "^5.4.0",
     "url": "^0.11.4",
     "uuid": "^9.x.x"

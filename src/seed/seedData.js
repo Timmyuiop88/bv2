@@ -5,7 +5,13 @@ const prisma = new PrismaClient();
 
 async function seedUsers() {
   try {
-    // Clear existing users
+    // Delete records in the correct order
+    await prisma.review.deleteMany();
+    await prisma.message.deleteMany();
+    await prisma.offer.deleteMany();
+    await prisma.image.deleteMany();
+    await prisma.listing.deleteMany();
+    await prisma.verification.deleteMany();
     await prisma.user.deleteMany();
 
     const hashedPassword = await bcrypt.hash('password123', 10);
@@ -17,6 +23,8 @@ async function seedUsers() {
         firstName: 'Admin',
         lastName: 'User',
         role: 'ADMIN',
+        status: 'ACTIVE',
+        emailVerified: true
       },
       {
         email: 'user@example.com',
@@ -24,6 +32,8 @@ async function seedUsers() {
         firstName: 'Regular',
         lastName: 'User',
         role: 'USER',
+        status: 'ACTIVE',
+        emailVerified: true
       }
     ];
 

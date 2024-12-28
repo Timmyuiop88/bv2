@@ -2,106 +2,96 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import { Database, Resource, getModelByName } from '@adminjs/prisma';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
-// Initialize Prisma Client
 const prisma = new PrismaClient();
-
-// Register Prisma Adapter
 AdminJS.registerAdapter({ Database, Resource });
 
 const adminOptions = {
   resources: [
     {
-      resource: { 
-        model: getModelByName('User'), 
-        client: prisma 
-      },
+      resource: { model: getModelByName('User'), client: prisma },
       options: {
-        navigation: { name: 'Users' }
+        navigation: { name: 'Users & Access' },
+        properties: {
+          password: { isVisible: false },
+          profileImage: { isVisible: true }
+        }
       }
     },
     {
-      resource: { 
-        model: getModelByName('Listing'), 
-        client: prisma 
-      },
+      resource: { model: getModelByName('Listing'), client: prisma },
       options: {
-        navigation: { name: 'Listings' }
+        navigation: { name: 'Marketplace' },
+        properties: {
+          description: { type: 'richtext' },
+          features: { type: 'mixed' },
+          location: { type: 'mixed' }
+        }
       }
     },
     {
-      resource: { 
-        model: getModelByName('Verification'), 
-        client: prisma 
-      },
+      resource: { model: getModelByName('Image'), client: prisma },
       options: {
-        navigation: { name: 'Verifications' }
+        navigation: { name: 'Marketplace' },
+        properties: {
+          url: {
+            isTitle: true,
+          },
+          isPrimary: {
+            isVisible: { list: true, filter: true, show: true, edit: true }
+          },
+          listingId: {
+            isVisible: { list: true, filter: true, show: true, edit: true }
+          }
+        }
       }
     },
     {
-      resource: { 
-        model: getModelByName('Review'), 
-        client: prisma 
-      },
+      resource: { model: getModelByName('Category'), client: prisma },
       options: {
-        navigation: { name: 'Reviews' }
+        navigation: { name: 'Marketplace' },
+        properties: {
+          slug: { isVisible: false },
+          parentId: {
+            type: 'reference',
+            reference: 'Category'
+          }
+        }
       }
     },
     {
-      resource: { 
-        model: getModelByName('Message'), 
-        client: prisma 
-      },
+      resource: { model: getModelByName('Offer'), client: prisma },
       options: {
-        navigation: { name: 'Messages' }
+        navigation: { name: 'Transactions' },
+        properties: {
+          price: { type: 'currency' }
+        }
       }
     },
     {
-      resource: { 
-        model: getModelByName('Offer'), 
-        client: prisma 
-      },
+      resource: { model: getModelByName('Verification'), client: prisma },
       options: {
-        navigation: { name: 'Offers' }
+        navigation: { name: 'Users & Access' },
+        properties: {
+          data: {
+            components: {
+              show: 'DocumentShow'
+            }
+          }
+        }
       }
     },
     {
-      resource: { 
-        model: getModelByName('Image'), 
-        client: prisma 
-      },
+      resource: { model: getModelByName('Review'), client: prisma },
       options: {
-        navigation: { name: 'Images' }
+        navigation: { name: 'Marketplace' }
       }
     }
-  ],
-  rootPath: '/admin',
-  branding: {
-    companyName: 'BackWood Admin',
-    logo: false,
-    softwareBrothers: false
-  }
+  ]
 };
 
-const adminJs = new AdminJS(adminOptions);
+const admin = new AdminJS(adminOptions);
+const adminRouter = AdminJSExpress.buildRouter(admin);
 
-const ADMIN = {
-  email: process.env.ADMIN_EMAIL || 'admin@example.com',
-  password: process.env.ADMIN_PASSWORD || 'password',
-};
-
-const adminRouter = AdminJSExpress.buildAuthenticatedRouter(
-  adminJs,
-  {
-    authenticate: async (email, password) => {
-      if (email === ADMIN.email && password === ADMIN.password) {
-        return ADMIN;
-      }
-      return null;
-    },
-    cookieName: 'adminjs',
-    cookiePassword: process.env.ADMIN_COOKIE_SECRET || 'session-key'
-  }
-);
-
-export { adminJs, adminRouter };
+export { admin as adminJs, adminRouter };
