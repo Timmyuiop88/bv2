@@ -78,6 +78,7 @@
                         <a class="nav-link" href="#error-handling">⚠️ Error Handling</a>
                         <a class="nav-link" href="#websockets">🔌 WebSockets</a>
                         <a class="nav-link" href="#image-guidelines">🖼️ Image Guidelines</a>
+                        <a class="nav-link" href="#categories">📑 Categories</a>
                     </nav>
                 </nav>
             </div>
@@ -283,28 +284,35 @@ const logout = async () => {
                     
                     <div class="endpoint">
                         <h4><span class="method post">POST</span> /api/messages/send</h4>
-                        <p>Send a message to another user.</p>
+                        <p>Send a message to another user, optionally about a specific listing.</p>
                         <pre><code class="language-json">{
   "receiverId": "user_id",
-  "content": "Hello, is this item still available?"
+  "content": "Hello, is this item still available?",
+  "conversationId": "optional_conversation_id",
+  "listingId": "optional_listing_id"
 }</code></pre>
-                        <h5>React Native Implementation</h5>
-                        <pre><code class="language-javascript">const sendMessage = async (receiverId, content) => {
-  try {
-    const response = await axios.post('/api/messages/send', {
-      receiverId,
-      content
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    
-    // Update local message state
-    setMessages(prev => [...prev, response.data.message]);
-    
-  } catch (error) {
-    handleApiError(error);
+
+                        <h5>Response:</h5>
+                        <pre><code class="language-json">{
+  "status": "success",
+  "message": {
+    "id": "message_id",
+    "content": "Hello, is this item still available?",
+    "sender": {
+      "id": "sender_id",
+      "firstName": "John",
+      "lastName": "Doe",
+      "profileImage": "url"
+    },
+    "listing": {
+      "id": "listing_id",
+      "title": "Item Title",
+      "price": 100
+    },
+    "createdAt": "2024-01-01T00:00:00Z",
+    "read": false
   }
-};</code></pre>
+}</code></pre>
                     </div>
 
                     <div class="endpoint">
@@ -345,6 +353,79 @@ useEffect(() => {
   
   return () => socket.off('newMessage');
 }, []);</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/messages/conversations</h4>
+                        <p>Get all conversations for the authenticated user</p>
+                        <h5>Response:</h5>
+                        <pre><code class="language-json">{
+  "status": "success",
+  "conversations": [
+    {
+      "id": "conversation_id",
+      "otherUser": {
+        "id": "user_id",
+        "firstName": "John",
+        "lastName": "Doe",
+        "profileImage": "url"
+      },
+      "lastMessage": {
+        "content": "Hello there!",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "read": false
+      },
+      "lastMessageTime": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 10,
+    "pages": 1,
+    "currentPage": 1,
+    "limit": 20
+  }
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4>Sending Messages with Conversation ID</h4>
+                        <p>When sending messages, you can include an existing conversationId:</p>
+                        <pre><code class="language-json">{
+  "receiverId": "user_id",
+  "content": "Hello there!",
+  "conversationId": "existing_conversation_id"
+}</code></pre>
+
+                        <h5>WebSocket Implementation</h5>
+                        <pre><code class="language-javascript">// Initialize socket with conversation
+socket.on('connect', () => {
+  // Join conversation room
+  socket.emit('joinConversation', conversationId);
+});
+
+// Send message with conversation
+socket.emit('message', {
+  receiverId: otherUserId,
+  content: messageText,
+  conversationId: currentConversationId
+});
+
+// Listen for messages in conversation
+socket.on('message:conversation', (message) => {
+  if (message.conversationId === currentConversationId) {
+    // Update conversation messages
+    setMessages(prev => [...prev, message]);
+  }
+});</code></pre>
+
+                        <div class="alert alert-info">
+                            <strong>Note:</strong> If no conversationId is provided, the API will:
+                            <ul>
+                                <li>Check for existing conversation between users</li>
+                                <li>Create new conversation if none exists</li>
+                                <li>Return the conversation ID in the response</li>
+                            </ul>
+                        </div>
                     </div>
                 </section>
 
@@ -776,6 +857,45 @@ socket.emit('sendMessage', {
                             <li>EXIF data is stripped for privacy</li>
                             <li>Multiple sizes are generated for responsive display</li>
                             <li>Watermarking is applied to listing images</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Add new Categories section before the Offers section -->
+                <section id="categories" class="mb-5">
+                    <h2>📑 Categories</h2>
+                    <p>Browse and manage listing categories.</p>
+                    
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/categories</h4>
+                        <p>Get all available categories</p>
+                        <h5>Response:</h5>
+                        <pre><code class="language-json">{
+  "status": "success",
+  "categories": [
+    {
+      "id": "category_id",
+      "name": "Real Estate",
+      "slug": "real-estate",
+      "description": "Properties for rent and sale"
+    },
+    {
+      "name": "Vehicles",
+      "slug": "vehicles",
+      "description": "Cars, motorcycles, and other vehicles"
+    }
+  ]
+}</code></pre>
+                    </div>
+
+                    <div class="endpoint">
+                        <h4><span class="method get">GET</span> /api/categories/:slug/listings</h4>
+                        <p>Get listings by category</p>
+                        <h5>Query Parameters:</h5>
+                        <ul>
+                            <li><code>page</code> - Page number (default: 1)</li>
+                            <li><code>limit</code> - Listings per page (default: 20)</li>
+                            <li><code>sort</code> - Sort order (recent/price)</li>
                         </ul>
                     </div>
                 </section>

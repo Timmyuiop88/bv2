@@ -5,8 +5,8 @@ const prisma = new PrismaClient();
 
 export const sendMessage = async (req, res, next) => {
   try {
-    const senderId = req.user.userId; // From auth middleware
-    const { receiverId, content } = req.body;
+    const senderId = req.user.userId;
+    const { receiverId, content, conversationId, listingId } = req.body;
 
     // Validate receiver exists
     const receiver = await prisma.user.findUnique({
@@ -17,16 +17,50 @@ export const sendMessage = async (req, res, next) => {
       throw new NotFoundError('Receiver not found');
     }
 
+    // If listingId provided, validate listing exists
+    if (listingId) {
+      const listing = await prisma.listing.findUnique({
+        where: { id: listingId }
+      });
+      if (!listing) {
+        throw new NotFoundError('Listing not found');
+      }
+    }
+
+    // If no conversationId provided, check if conversation exists or create new one
+    let conversation;
+    if (!conversationId) {
+      conversation = await prisma.conversation.findFirst({
+        where: {
+          AND: [
+            { participants: { some: { id: senderId } } },
+            { participants: { some: { id: receiverId } } }
+          ]
+        }
+      });
+
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data: {
+            participants: {
+              connect: [
+                { id: senderId },
+                { id: receiverId }
+              ]
+            }
+          }
+        });
+      }
+    }
+
     // Create message
     const message = await prisma.message.create({
       data: {
         content,
-        sender: {
-          connect: { id: senderId }
-        },
-        receiver: {
-          connect: { id: receiverId }
-        },
+        sender: { connect: { id: senderId } },
+        receiver: { connect: { id: receiverId } },
+        conversation: { connect: { id: conversationId || conversation.id } },
+        listing: listingId ? { connect: { id: listingId } } : undefined,
         read: false
       },
       include: {
@@ -37,8 +71,21 @@ export const sendMessage = async (req, res, next) => {
             lastName: true,
             profileImage: true
           }
+        },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            price: true
+          }
         }
       }
+    });
+
+    // Update conversation lastMessageAt
+    await prisma.conversation.update({
+      where: { id: conversationId || conversation.id },
+      data: { lastMessageAt: new Date() }
     });
 
     res.status(201).json({
@@ -163,78 +210,52 @@ export const getConversations = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    // Get all users the current user has messaged with
-    const conversationPartners = await prisma.message.findMany({
+    const conversations = await prisma.conversation.findMany({
       where: {
-        OR: [
-          { senderId: userId },
-          { receiverId: userId }
-        ]
+        participants: { some: { id: userId } }
       },
-      select: {
-        sender: {
+      include: {
+        participants: {
+          where: { NOT: { id: userId } },
           select: {
             id: true,
             firstName: true,
             lastName: true,
-            profileImage: true,
+            profileImage: true
           }
         },
-        receiver: {
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
           select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            profileImage: true,
+            content: true,
+            createdAt: true,
+            read: true
           }
-        },
-        content: true,
-        createdAt: true,
-        read: true,
+        }
       },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      distinct: ['senderId', 'receiverId'],
+      orderBy: { lastMessageAt: 'desc' },
       skip,
-      take: limit,
+      take: limit
     });
 
-    // Transform the data to get the latest message for each conversation
-    const conversations = conversationPartners.map(msg => {
-      const otherUser = msg.sender.id === userId ? msg.receiver : msg.sender;
-      return {
-        otherUserId: otherUser.id,
-        firstName: otherUser.firstName,
-        lastName: otherUser.lastName,
-        profileImage: otherUser.profileImage,
-        lastMessage: msg.content,
-        lastMessageTime: msg.createdAt,
-        read: msg.read
-      };
-    });
-
-    // Get total count of unique conversations
-    const total = await prisma.message.findMany({
+    const total = await prisma.conversation.count({
       where: {
-        OR: [
-          { senderId: userId },
-          { receiverId: userId }
-        ]
-      },
-      select: {
-        senderId: true,
-        receiverId: true,
-      },
-      distinct: ['senderId', 'receiverId'],
+        participants: { some: { id: userId } }
+      }
     });
 
     res.json({
       status: 'success',
-      conversations,
+      conversations: conversations.map(conv => ({
+        id: conv.id,
+        otherUser: conv.participants[0],
+        lastMessage: conv.messages[0],
+        lastMessageTime: conv.lastMessageAt
+      })),
       pagination: {
-        total: total.length,
-        pages: Math.ceil(total.length / limit),
+        total,
+        pages: Math.ceil(total / limit),
         currentPage: page,
         limit
       }

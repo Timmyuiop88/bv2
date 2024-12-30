@@ -15,6 +15,9 @@ import messageRoutes from './routes/messageRoutes.js';
 import listingRoutes from './routes/listingRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import kycRoutes from './routes/kycRoutes.js';
+import categoryRoutes from './routes/categoryRoutes.js';
+import offerRoutes from './routes/offerRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,6 +50,9 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/listings', listingRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/kyc', kycRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/offers', offerRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Add error handler last
 app.use(errorHandler);

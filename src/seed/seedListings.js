@@ -5,10 +5,13 @@ const prisma = new PrismaClient();
 
 async function seedListingsAndReviews() {
   try {
-    // Clear existing data
+    // Clear existing data in the correct order to respect foreign key constraints
+    await prisma.message.deleteMany();
     await prisma.review.deleteMany();
+    await prisma.offer.deleteMany();
     await prisma.image.deleteMany();
     await prisma.listing.deleteMany();
+    await prisma.verification.deleteMany();
     await prisma.category.deleteMany();
     await prisma.user.deleteMany();
 

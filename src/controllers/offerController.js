@@ -1,43 +1,23 @@
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
+import { APIError, NotFoundError } from '../utils/errors.js';
+
 const prisma = new PrismaClient();
 
-exports.createOffer = async (req, res) => {
+export const createOffer = async (req, res, next) => {
   try {
-    const { userId: buyerId } = req.user;
+    const buyerId = req.user.userId;
     const { listingId, price, message } = req.body;
 
-    // Check if listing exists and is available
+    // Get listing to check if it exists and get sellerId
     const listing = await prisma.listing.findUnique({
-      where: { id: listingId },
-      include: { offers: true }
+      where: { id: listingId }
     });
 
     if (!listing) {
-      return res.status(404).json({ message: 'Listing not found' });
+      throw new NotFoundError('Listing not found');
     }
 
-    if (listing.status !== 'ACTIVE') {
-      return res.status(400).json({ message: 'This listing is not available' });
-    }
-
-    if (listing.userId === buyerId) {
-      return res.status(400).json({ message: 'You cannot make an offer on your own listing' });
-    }
-
-    // Check if user already has a pending offer for this listing
-    const existingOffer = await prisma.offer.findFirst({
-      where: {
-        listingId,
-        buyerId,
-        status: 'PENDING'
-      }
-    });
-
-    if (existingOffer) {
-      return res.status(400).json({ message: 'You already have a pending offer for this listing' });
-    }
-
-    // Create the offer
+    // Create offer
     const offer = await prisma.offer.create({
       data: {
         listingId,
@@ -45,6 +25,7 @@ exports.createOffer = async (req, res) => {
         sellerId: listing.userId,
         price,
         message,
+        status: 'PENDING'
       },
       include: {
         buyer: {
@@ -52,114 +33,86 @@ exports.createOffer = async (req, res) => {
             id: true,
             firstName: true,
             lastName: true,
-            email: true
+            profileImage: true
+          }
+        },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            price: true
           }
         }
       }
     });
 
-    // Notify seller through WebSocket if available
-    const wsService = req.app.get('wsService');
-    const sellerSocket = wsService.userSockets.get(listing.userId);
-    if (sellerSocket) {
-      sellerSocket.emit('new_offer', {
-        offerId: offer.id,
-        listingId: listing.id,
-        buyer: offer.buyer,
-        price: offer.price,
-        message: offer.message
-      });
-    }
-
-    res.status(201).json(offer);
+    res.status(201).json({
+      status: 'success',
+      offer
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error creating offer', error: error.message });
+    next(error);
   }
 };
 
-exports.respondToOffer = async (req, res) => {
+export const getOffers = async (req, res, next) => {
   try {
-    const { userId: sellerId } = req.user;
+    const userId = req.user.userId;
+    const { type = 'received' } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const where = type === 'sent' 
+      ? { buyerId: userId }
+      : { sellerId: userId };
+
+    const offers = await prisma.offer.findMany({
+      where,
+      include: {
+        buyer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profileImage: true
+          }
+        },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            price: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
+    });
+
+    const total = await prisma.offer.count({ where });
+
+    res.json({
+      status: 'success',
+      offers,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        currentPage: page,
+        limit
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const respondToOffer = async (req, res, next) => {
+  try {
     const { offerId } = req.params;
     const { status } = req.body;
-
-    const offer = await prisma.offer.findUnique({
-      where: { id: offerId },
-      include: {
-        listing: true,
-        buyer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true
-          }
-        }
-      }
-    });
-
-    if (!offer) {
-      return res.status(404).json({ message: 'Offer not found' });
-    }
-
-    if (offer.sellerId !== sellerId) {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-
-    if (offer.status !== 'PENDING') {
-      return res.status(400).json({ message: 'This offer can no longer be modified' });
-    }
-
-    // Update offer status
-    const updatedOffer = await prisma.offer.update({
-      where: { id: offerId },
-      data: { status },
-      include: {
-        listing: true,
-        buyer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true
-          }
-        }
-      }
-    });
-
-    // If offer is accepted, reject all other pending offers
-    if (status === 'ACCEPTED') {
-      await prisma.offer.updateMany({
-        where: {
-          listingId: offer.listingId,
-          id: { not: offerId },
-          status: 'PENDING'
-        },
-        data: { status: 'REJECTED' }
-      });
-    }
-
-    // Notify buyer through WebSocket
-    const wsService = req.app.get('wsService');
-    const buyerSocket = wsService.userSockets.get(offer.buyerId);
-    if (buyerSocket) {
-      buyerSocket.emit('offer_response', {
-        offerId: offer.id,
-        listingId: offer.listingId,
-        status: updatedOffer.status
-      });
-    }
-
-    res.json(updatedOffer);
-  } catch (error) {
-    res.status(500).json({ message: 'Error responding to offer', error: error.message });
-  }
-};
-
-exports.markOfferCompleted = async (req, res) => {
-  try {
-    const { userId: sellerId } = req.user;
-    const { offerId } = req.params;
+    const userId = req.user.userId;
 
     const offer = await prisma.offer.findUnique({
       where: { id: offerId },
@@ -167,94 +120,157 @@ exports.markOfferCompleted = async (req, res) => {
     });
 
     if (!offer) {
-      return res.status(404).json({ message: 'Offer not found' });
+      throw new NotFoundError('Offer not found');
     }
 
-    if (offer.sellerId !== sellerId) {
-      return res.status(403).json({ message: 'Not authorized' });
+    if (offer.listing.userId !== userId) {
+      throw new APIError('Not authorized to respond to this offer', 403);
     }
 
-    if (offer.status !== 'ACCEPTED') {
-      return res.status(400).json({ message: 'Only accepted offers can be marked as completed' });
+    if (!['ACCEPTED', 'REJECTED'].includes(status)) {
+      throw new APIError('Invalid status. Must be ACCEPTED or REJECTED', 400);
     }
 
-    // Update offer and listing status
-    const [updatedOffer] = await prisma.$transaction([
-      prisma.offer.update({
-        where: { id: offerId },
-        data: { status: 'COMPLETED' }
-      }),
-      prisma.listing.update({
-        where: { id: offer.listingId },
-        data: { status: 'SOLD' }
-      })
-    ]);
-
-    // Notify buyer
-    const wsService = req.app.get('wsService');
-    const buyerSocket = wsService.userSockets.get(offer.buyerId);
-    if (buyerSocket) {
-      buyerSocket.emit('offer_completed', {
-        offerId: offer.id,
-        listingId: offer.listingId
-      });
-    }
-
-    res.json(updatedOffer);
-  } catch (error) {
-    res.status(500).json({ message: 'Error completing offer', error: error.message });
-  }
-};
-
-exports.getMyOffers = async (req, res) => {
-  try {
-    const { userId } = req.user;
-    const { status, type } = req.query;
-
-    const where = {};
-    if (type === 'sent') {
-      where.buyerId = userId;
-    } else if (type === 'received') {
-      where.sellerId = userId;
-    }
-
-    if (status) {
-      where.status = status;
-    }
-
-    const offers = await prisma.offer.findMany({
-      where,
+    const updatedOffer = await prisma.offer.update({
+      where: { id: offerId },
+      data: { status },
       include: {
-        listing: {
-          include: {
-            images: {
-              where: { isPrimary: true },
-              take: 1
-            }
-          }
-        },
         buyer: {
           select: {
             id: true,
             firstName: true,
             lastName: true,
-            email: true
+            profileImage: true
           }
         },
-        seller: {
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            price: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      status: 'success',
+      offer: updatedOffer
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markOfferCompleted = async (req, res, next) => {
+  try {
+    const { offerId } = req.params;
+    const userId = req.user.userId;
+
+    const offer = await prisma.offer.findUnique({
+      where: { id: offerId },
+      include: { listing: true }
+    });
+
+    if (!offer) {
+      throw new NotFoundError('Offer not found');
+    }
+
+    if (offer.listing.userId !== userId) {
+      throw new APIError('Not authorized to complete this offer', 403);
+    }
+
+    if (offer.status !== 'ACCEPTED') {
+      throw new APIError('Can only complete accepted offers', 400);
+    }
+
+    const updatedOffer = await prisma.offer.update({
+      where: { id: offerId },
+      data: { status: 'COMPLETED' },
+      include: {
+        buyer: {
           select: {
             id: true,
             firstName: true,
             lastName: true,
-            email: true
+            profileImage: true
+          }
+        },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            price: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      status: 'success',
+      offer: updatedOffer
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyOffers = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const offers = await prisma.offer.findMany({
+      where: {
+        OR: [
+          { buyerId: userId },
+          { sellerId: userId }
+        ]
+      },
+      include: {
+        buyer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profileImage: true
+          }
+        },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            price: true
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
     });
 
-    res.json(offers);
+    const total = await prisma.offer.count({
+      where: {
+        OR: [
+          { buyerId: userId },
+          { sellerId: userId }
+        ]
+      }
+    });
+
+    res.json({
+      status: 'success',
+      offers,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        currentPage: page,
+        limit
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching offers', error: error.message });
+    next(error);
   }
 }; 

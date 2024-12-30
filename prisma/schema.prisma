@@ -77,6 +77,8 @@ model User {
   receivedMessages  Message[]         @relation("ReceivedMessages")
   sentOffers        Offer[]           @relation("SentOffers")
   receivedOffers    Offer[]          @relation("ReceivedOffers")
+  conversations     Conversation[]    @relation("UserConversations")
+  sentMessages      Message[]         @relation("SentMessages")
 }
 
 model Verification {
@@ -137,14 +139,18 @@ model Review {
 }
 
 model Message {
-  id              String    @id @default(uuid())
-  senderId        String
-  receiverId      String
-  content         String
-  read            Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  sender          User      @relation(fields: [senderId], references: [id])
-  receiver        User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  id             String       @id @default(cuid())
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+  conversationId String?
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+  senderId       String
+  receiver       User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId     String
+  content        String
+  read           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  User User[]
 }
 
 model Offer {
@@ -175,4 +181,13 @@ model Category {
   parent      Category? @relation("SubCategories", fields: [parentId], references: [id])
   children    Category[] @relation("SubCategories")
   listings    Listing[]
+}
+
+model Conversation {
+  id            String      @id @default(cuid())
+  participants  User[]      @relation("UserConversations")
+  messages      Message[]
+  lastMessageAt DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
