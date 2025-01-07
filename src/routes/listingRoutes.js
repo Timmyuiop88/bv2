@@ -21,7 +21,7 @@ router.get('/:id', getListing);
 // Protected routes
 router.use(authenticateToken); // Apply authentication to all routes below
 
-router.post('/', createListing);
+router.post('/', authenticateToken, createListing);
 router.get('/user/me', getMyListings);
 router.post('/:id/images', uploadListingImages);
 router.put('/:id', updateListing);

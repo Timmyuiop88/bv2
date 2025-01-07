@@ -5,7 +5,11 @@ const prisma = new PrismaClient();
 export const createListing = async (req, res) => {
     try {
         const { title, description, price, type, currency, location, features } = req.body;
-        const userId = req.user.id; // From auth middleware
+        const userId = req.user.userId || req.user.id;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
 
         const listing = await prisma.listing.create({
             data: {

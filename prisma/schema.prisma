@@ -73,7 +73,6 @@ model User {
   verifications     Verification[]
   reviews           Review[]
   receivedReviews   Review[]          @relation("ReceivedReviews")
-  messages          Message[]
   receivedMessages  Message[]         @relation("ReceivedMessages")
   sentOffers        Offer[]           @relation("SentOffers")
   receivedOffers    Offer[]          @relation("ReceivedOffers")
@@ -111,6 +110,7 @@ model Listing {
   user            User           @relation(fields: [userId], references: [id])
   reviews         Review[]
   offers          Offer[]
+  messages        Message[]
   categoryId      String?
   category        Category?   @relation(fields: [categoryId], references: [id])
 }
@@ -146,11 +146,11 @@ model Message {
   senderId       String
   receiver       User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
   receiverId     String
+  listing        Listing?     @relation(fields: [listingId], references: [id])
+  listingId      String?
   content        String
   read           Boolean      @default(false)
   createdAt      DateTime     @default(now())
-
-  User User[]
 }
 
 model Offer {
