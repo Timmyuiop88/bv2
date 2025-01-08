@@ -8,10 +8,14 @@ import {
     deleteListing,
     getMyListings,
     searchListings,
-    uploadListingImages
+    uploadListingImages,
+    createListingWithImages
 } from '../controllers/listingController.js';
+import multer from 'multer';
 
 const router = express.Router();
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Public routes
 router.get('/', getAllListings);
@@ -35,5 +39,11 @@ router.use('/:id/approve', isModerator, (req, res) => {
 router.use('/:id/feature', isAdmin, (req, res) => {
     // Feature listing implementation
 });
+
+router.post('/with-images', 
+  authenticateToken, 
+  upload.array('images', 5), // Max 5 images
+  createListingWithImages
+);
 
 export default router; 

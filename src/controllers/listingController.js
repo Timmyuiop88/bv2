@@ -1,6 +1,15 @@
 import { PrismaClient } from '@prisma/client';
+import { v2 as cloudinary } from 'cloudinary';
+import { Readable } from 'stream';
 
 const prisma = new PrismaClient();
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 export const createListing = async (req, res) => {
     try {
@@ -251,4 +260,82 @@ export const uploadListingImages = async (req, res) => {
     // Implementation depends on your file upload solution
     // (e.g., multer, cloudinary, etc.)
     res.status(501).json({ error: 'Not implemented' });
+};
+
+export const createListingWithImages = async (req, res) => {
+  try {
+    const { title, description, price, type, currency, location, features } = req.body;
+    const images = req.files; // Array of image files
+    const userId = req.user.userId;
+
+    // Check if user is vendor
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isVendor: true }
+    });
+
+    if (!user?.isVendor) {
+      return res.status(403).json({
+        error: 'Only vendors can create listings. Please become a vendor first.'
+      });
+    }
+
+    // Upload images to Cloudinary with progress tracking
+    const uploadPromises = images.map((file) => {
+      return new Promise((resolve, reject) => {
+        const upload = cloudinary.uploader.upload_stream(
+          {
+            folder: 'listings',
+            resource_type: 'auto',
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+
+        // Create readable stream from buffer and pipe to Cloudinary
+        const stream = Readable.from(file.buffer);
+        stream.pipe(upload);
+
+        // Track upload progress
+        upload.on('progress', (progress) => {
+          // Emit progress through Server-Sent Events if needed
+          if (req.accepts('text/event-stream')) {
+            res.write(`data: ${JSON.stringify({ progress })}\n\n`);
+          }
+        });
+      });
+    });
+
+    const uploadedImages = await Promise.all(uploadPromises);
+
+    // Create listing with uploaded image URLs
+    const listing = await prisma.listing.create({
+      data: {
+        userId,
+        title,
+        description,
+        price,
+        type,
+        currency,
+        location,
+        features,
+        status: 'DRAFT',
+        images: {
+          create: uploadedImages.map((img, index) => ({
+            url: img.secure_url,
+            isPrimary: index === 0
+          }))
+        }
+      },
+      include: {
+        images: true
+      }
+    });
+
+    res.status(201).json(listing);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 };

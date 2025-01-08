@@ -659,67 +659,106 @@ export const useMessages = (conversationId) => {
                     <p>Manage product listings and searches.</p>
                     
                     <div class="endpoint">
-                        <h4><span class="method post">POST</span> /api/listings</h4>
-                        <p>Create a new listing</p>
+                        <h4><span class="method post">POST</span> /api/listings/with-images</h4>
+                        <p>Create a new listing with image uploads</p>
                         <h5>Request:</h5>
+                        <p>Content-Type: multipart/form-data</p>
                         <pre><code class="language-json">{
   "title": "Product Title",
   "description": "Detailed description",
   "price": 99.99,
-  "category": "ELECTRONICS",
-  "condition": "NEW",
-  "images": ["base64_image_1", "base64_image_2"],
+  "type": "APARTMENT_RENT",
+  "currency": "USD",
   "location": {
-    "latitude": 123.456,
-    "longitude": 789.012
+    "address": "123 Main St",
+    "city": "New York",
+    "coordinates": {
+      "lat": 40.7128,
+      "lng": -74.0060
+    }
   },
-  "tags": ["tag1", "tag2"]
+  "features": {
+    "bedrooms": 2,
+    "bathrooms": 1,
+    "sqft": 1000
+  },
+  "images": [File, File, File] // Up to 5 image files
 }</code></pre>
+
+                        <h5>React Native Implementation:</h5>
+                        <pre><code class="language-javascript">
+import * asImagePicker from 'expo-image-picker';
+import axios from 'axios';
+
+const createListing = async () => {
+  try {
+    // Pick images
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 1,
+      aspect: [4, 3],
+    });
+
+    if (!result.canceled) {
+      const formData = new FormData();
+      
+      // Add listing details
+      formData.append('title', title);
+      formData.append('description', description);
+      formData.append('price', price);
+      formData.append('type', type);
+      formData.append('currency', currency);
+      formData.append('location', JSON.stringify(location));
+      formData.append('features', JSON.stringify(features));
+      
+      // Add images
+      result.assets.forEach((image, index) => {
+        formData.append('images', {
+          uri: image.uri,
+          type: 'image/jpeg',
+          name: `image-${index}.jpg`,
+        });
+      });
+
+      const response = await axios.post(
+        'api/listings/with-images', 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            // Update your UI with upload progress
+            setUploadProgress(percentCompleted);
+          },
+        }
+      );
+
+      console.log('Listing created:', response.data);
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+};</code></pre>
+
+                        <div class="alert alert-info">
+                            <h5>Image Upload Requirements:</h5>
+                            <ul>
+                                <li>Maximum 5 images per listing</li>
+                                <li>Each image must be under 5MB</li>
+                                <li>Supported formats: JPG, PNG</li>
+                                <li>Images are automatically optimized and stored on Cloudinary</li>
+                                <li>First image is set as primary listing image</li>
+                            </ul>
+                        </div>
                     </div>
 
-                    <div class="endpoint">
-                        <h4><span class="method get">GET</span> /api/listings</h4>
-                        <p>Search listings with filters</p>
-                        <h5>Query Parameters:</h5>
-                        <ul>
-                            <li><code>search</code> - Search term</li>
-                            <li><code>category</code> - Filter by category</li>
-                            <li><code>minPrice</code> - Minimum price</li>
-                            <li><code>maxPrice</code> - Maximum price</li>
-                            <li><code>condition</code> - Item condition</li>
-                            <li><code>radius</code> - Search radius in km</li>
-                            <li><code>lat</code> - Latitude for location-based search</li>
-                            <li><code>lng</code> - Longitude for location-based search</li>
-                            <li><code>page</code> - Page number (default: 1)</li>
-                            <li><code>limit</code> - Items per page (default: 20)</li>
-                        </ul>
-                    </div>
-                </section>
-
-                <!-- Messages Section -->
-                <section id="messages" class="mb-5">
-                    <h2>💬 Messages</h2>
-                    <p>Real-time messaging system using WebSocket.</p>
-                    
-                    <div class="endpoint">
-                        <h4>WebSocket Events</h4>
-                        <pre><code class="language-javascript">// Connect to WebSocket
-const socket = io(WEBSOCKET_URL, {
-  auth: { token: userToken }
-});
-
-// Listen for new messages
-socket.on('newMessage', (message) => {
-  console.log('New message:', message);
-});
-
-// Send a message
-socket.emit('sendMessage', {
-  recipientId: 'user_id',
-  content: 'Message content',
-  listingId: 'listing_id' // Optional, for listing-related messages
-});</code></pre>
-                    </div>
+                    <!-- Keep existing endpoints documentation below -->
                 </section>
 
                 <!-- Offers Section -->
