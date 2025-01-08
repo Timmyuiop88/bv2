@@ -66,7 +66,7 @@ export const changePassword = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.userId;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -79,6 +79,8 @@ export const getProfile = async (req, res) => {
         emailVerified: true,
         phoneVerified: true,
         kycVerified: true,
+        isVendor: true,
+        status: true,
         _count: {
           select: {
             listings: true,
@@ -93,7 +95,18 @@ export const getProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json(user);
+    const verificationStatus = {
+      isFullyVerified: user.emailVerified && user.phoneVerified && user.kycVerified,
+      email: user.emailVerified,
+      phone: user.phoneVerified,
+      kyc: user.kycVerified,
+      canBecomeVendor: user.emailVerified && user.phoneVerified && user.kycVerified && !user.isVendor
+    };
+
+    res.json({
+      ...user,
+      verification: verificationStatus
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching profile', error: error.message });
   }
