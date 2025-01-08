@@ -78,6 +78,8 @@ model User {
   receivedOffers    Offer[]          @relation("ReceivedOffers")
   conversations     Conversation[]    @relation("UserConversations")
   sentMessages      Message[]         @relation("SentMessages")
+  points            Int               @default(0)
+  isVendor          Boolean           @default(false)
 }
 
 model Verification {

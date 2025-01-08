@@ -7,8 +7,15 @@ export const createListing = async (req, res) => {
         const { title, description, price, type, currency, location, features } = req.body;
         const userId = req.user.userId || req.user.id;
 
-        if (!userId) {
-            return res.status(401).json({ error: 'User not authenticated' });
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { isVendor: true }
+        });
+
+        if (!user?.isVendor) {
+            return res.status(403).json({ 
+                error: 'Only vendors can create listings. Please become a vendor first.' 
+            });
         }
 
         const listing = await prisma.listing.create({

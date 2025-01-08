@@ -18,6 +18,8 @@ import kycRoutes from './routes/kycRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import offerRoutes from './routes/offerRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
+import pointsRoutes from './routes/pointsRoutes.js';
+import vendorRoutes from './routes/vendorRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -53,6 +55,8 @@ app.use('/api/kyc', kycRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/offers', offerRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/points', pointsRoutes);
+app.use('/api/vendor', vendorRoutes);
 
 // Add error handler last
 app.use(errorHandler);
